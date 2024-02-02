@@ -92,7 +92,7 @@ fn start_process_exporter(metrics: &Metrics) {
     spawn_thread("exporter", move || loop {
         match parse_stats() {
             Ok(stats) => {
-                cpu.with_label_values(&["utime"]).set(stats.utime as f64);
+                cpu.with_label_values(&["utime"]).set(stats.utime);
                 rss.set(stats.rss as i64);
                 fds.set(stats.fds as i64);
             }

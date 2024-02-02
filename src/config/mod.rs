@@ -1,12 +1,17 @@
+mod cookie;
+
+pub use cookie::*;
+
 use std::{
     net::{SocketAddr, ToSocketAddrs},
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 use clap::{App, Arg};
 use dirs::home_dir;
 
-use crate::chain::Network;
+use crate::{chain::Network, daemon::CookieGetter};
 
 #[cfg(feature = "liquid")]
 use bitcoin::Network as BNetwork;
@@ -51,6 +56,18 @@ pub struct Config {
 }
 
 impl Config {
+    pub fn cookie_getter(&self) -> Arc<dyn CookieGetter> {
+        if let Some(ref value) = self.cookie {
+            Arc::new(StaticCookie {
+                value: value.as_bytes().to_vec(),
+            })
+        } else {
+            Arc::new(CookieFile {
+                daemon_dir: self.daemon_dir.clone(),
+            })
+        }
+    }
+
     pub fn from_args() -> Self {
         let network_help = format!("Select network type: ({})", Network::names().join(", "));
 

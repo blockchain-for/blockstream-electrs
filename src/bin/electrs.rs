@@ -1,6 +1,6 @@
 use std::{process, sync::Arc};
 
-use electrs::{config::Config, errors::*, metrics::Metrics, signal::Waiter};
+use electrs::{config::Config, daemon::Daemon, errors::*, metrics::Metrics, signal::Waiter};
 use error_chain::ChainedError;
 use log::error;
 
@@ -17,6 +17,16 @@ fn run_server(config: Arc<Config>) -> Result<()> {
     let signal = Waiter::start();
     let metrics = Metrics::new(config.monitoring_addr);
     metrics.start();
+
+    let daemon = Arc::new(Daemon::new(
+        &config.daemon_dir,
+        &config.blocks_dir,
+        config.daemon_rpc_addr,
+        config.cookie_getter(),
+        config.network_type,
+        signal.clone(),
+        &metrics,
+    ));
 
     Ok(())
 }
