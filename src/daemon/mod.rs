@@ -13,8 +13,7 @@ pub use network::*;
 use itertools::Itertools;
 use prometheus::{HistogramOpts, HistogramVec};
 use serde_json::{from_str, from_value, Value};
-use std::collections::HashSet;
-use std::io::{BufRead, BufReader, Lines, Write};
+use std::collections::{HashMap, HashSet};
 use std::{
     net::SocketAddr,
     path::{Path, PathBuf},
@@ -169,7 +168,7 @@ impl Daemon {
         let mut result = vec![];
         for heights in all_heights.chunks(chunk_size) {
             trace!("downloading {} block headers", heights.len());
-            let mut headers = self.getblockheaders(&heights)?;
+            let mut headers = self.getblockheaders(heights)?;
             assert!(headers.len() == heights.len());
             result.append(&mut headers);
         }
