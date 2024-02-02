@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 pub struct NetworkInfo {
     pub(super) version: u64,
     pub(super) subversion: String,
-    relayfee: f64, // in BTC/kB
+    pub(super) relayfee: f64, // in BTC/kB
 }
 
 #[derive(Debug, Deserialize, Serialize)]

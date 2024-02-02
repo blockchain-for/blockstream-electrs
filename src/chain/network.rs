@@ -1,3 +1,5 @@
+use bitcoin::network::constants::Network as BNetwork;
+
 #[derive(Debug, Copy, Clone, PartialEq, Hash, Serialize, Ord, PartialOrd, Eq)]
 pub enum Network {
     #[cfg(not(feature = "liquid"))]
@@ -35,6 +37,11 @@ impl Network {
             "liquidregtest".to_string(),
         ];
     }
+
+    #[cfg(not(feature = "liquid"))]
+    pub fn magic(self) -> u32 {
+        BNetwork::from(self).magic()
+    }
 }
 
 impl From<&str> for Network {
@@ -57,6 +64,30 @@ impl From<&str> for Network {
             "liquidregtest" => Network::LiquidRegtest,
 
             _ => panic!("unsupported Bitcoin network: {:?}", value),
+        }
+    }
+}
+
+#[cfg(not(feature = "liquid"))]
+impl From<Network> for BNetwork {
+    fn from(network: Network) -> Self {
+        match network {
+            Network::Bitcoin => BNetwork::Bitcoin,
+            Network::Testnet => BNetwork::Testnet,
+            Network::Regtest => BNetwork::Regtest,
+            Network::Signet => BNetwork::Signet,
+        }
+    }
+}
+
+#[cfg(not(feature = "liquid"))]
+impl From<BNetwork> for Network {
+    fn from(value: BNetwork) -> Self {
+        match value {
+            BNetwork::Bitcoin => Network::Bitcoin,
+            BNetwork::Testnet => Network::Testnet,
+            BNetwork::Regtest => Network::Regtest,
+            BNetwork::Signet => Network::Signet,
         }
     }
 }

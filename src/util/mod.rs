@@ -1,3 +1,5 @@
+pub mod block;
+
 use std::thread;
 
 pub fn spawn_thread<F, T>(name: &str, f: F) -> thread::JoinHandle<T>
