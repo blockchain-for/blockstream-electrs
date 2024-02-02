@@ -1,6 +1,8 @@
 use std::{process, sync::Arc};
 
-use electrs::{config::Config, daemon::Daemon, errors::*, metrics::Metrics, signal::Waiter};
+use electrs::{
+    config::Config, daemon::Daemon, errors::*, metrics::Metrics, new_index::Store, signal::Waiter,
+};
 use error_chain::ChainedError;
 use log::error;
 
@@ -27,6 +29,8 @@ fn run_server(config: Arc<Config>) -> Result<()> {
         signal.clone(),
         &metrics,
     ));
+
+    let store = Arc::new(Store::open(&config.db_path.join("newindex"), &config));
 
     Ok(())
 }

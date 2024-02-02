@@ -234,7 +234,6 @@ impl HeaderList {
     }
 }
 
-
 #[derive(Serialize, Deserialize)]
 pub struct BlockStatus {
     pub in_best_chain: bool,
