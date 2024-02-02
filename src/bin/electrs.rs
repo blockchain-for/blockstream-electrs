@@ -19,7 +19,7 @@ fn run_server(config: Arc<Config>) -> Result<()> {
     metrics.start();
 
     let daemon = Arc::new(Daemon::new(
-        &config.daemon_dir,
+        config.daemon_dir.as_path(),
         &config.blocks_dir,
         config.daemon_rpc_addr,
         config.cookie_getter(),

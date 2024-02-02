@@ -39,6 +39,10 @@ impl Connection {
             signal,
         })
     }
+
+    pub fn reconnect(&self) -> Result<Self> {
+        Self::new(self.addr, self.cookie_getter.clone(), self.signal.clone())
+    }
 }
 pub fn tcp_connect(addr: SocketAddr, signal: &Waiter) -> Result<TcpStream> {
     loop {
