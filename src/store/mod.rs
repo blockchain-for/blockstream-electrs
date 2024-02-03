@@ -1,8 +1,6 @@
-pub mod db;
-pub mod fetch;
-pub mod indexer;
-pub mod schema;
-pub mod utxo;
+mod db;
+
+pub use db::*;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -10,11 +8,14 @@ use std::{
     sync::RwLock,
 };
 
-use bitcoin::{consensus::deserialize, BlockHash, BlockHeader};
+use bitcoin::{consensus::deserialize, BlockHash, BlockHeader, Script};
+use crypto::digest::Digest;
+use crypto::sha2::Sha256;
 
-use crate::{config::Config, util::block::HeaderList};
-
-use self::{db::DB, schema::BlockRow};
+use crate::{
+    config::Config,
+    util::{block::HeaderList, Bytes, FullHash},
+};
 
 const MIN_HISTORY_ITEMS_TO_CACHE: usize = 100;
 
@@ -98,4 +99,40 @@ fn load_blockheaders(db: &DB) -> HashMap<BlockHash, BlockHeader> {
             (key, value)
         })
         .collect()
+}
+
+pub fn compute_script_hash(script: &Script) -> FullHash {
+    let mut hash = FullHash::default();
+    let mut sha2 = Sha256::new();
+    sha2.input(script.as_bytes());
+    sha2.result(&mut hash);
+    hash
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct BlockKey {
+    pub code: u8,
+    pub hash: FullHash,
+}
+
+pub struct BlockRow {
+    pub key: BlockKey,
+    pub value: Bytes, // serialized output
+}
+
+impl BlockRow {
+    pub fn from_row(row: DBRow) -> Self {
+        BlockRow {
+            key: bincode::deserialize(&row.key).unwrap(),
+            value: row.value,
+        }
+    }
+
+    pub fn header_filter() -> Bytes {
+        b"B".to_vec()
+    }
+
+    pub fn done_filter() -> Bytes {
+        b"D".to_vec()
+    }
 }

@@ -2,9 +2,13 @@ use std::sync::Arc;
 
 use prometheus::{Gauge, HistogramVec};
 
-use crate::{chain::Network, config::Config};
+use crate::{
+    chain::Network,
+    config::Config,
+    store::{DBFlush, Store},
+};
 
-use super::{db::DBFlush, fetch::FetchFrom, Store};
+use super::fetch::FetchFrom;
 
 pub struct Indexer {
     pub store: Arc<Store>,

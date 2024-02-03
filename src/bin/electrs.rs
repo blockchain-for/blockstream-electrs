@@ -1,7 +1,7 @@
 use std::{process, sync::Arc};
 
 use electrs::{
-    config::Config, daemon::Daemon, errors::*, metrics::Metrics, new_index::Store, signal::Waiter,
+    config::Config, daemon::Daemon, errors::*, metrics::Metrics, signal::Waiter, store::Store,
 };
 use error_chain::ChainedError;
 use log::error;
@@ -31,6 +31,8 @@ fn run_server(config: Arc<Config>) -> Result<()> {
     ));
 
     let store = Arc::new(Store::open(&config.db_path.join("newindex"), &config));
+    // let mut indexer = Indexer::open(Arc::clone(&store), fetch_from(&config, &store), &config, &metrics);
+    // let mut tip = indexer.update(&daemon)?
 
     Ok(())
 }

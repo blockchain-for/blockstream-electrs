@@ -192,6 +192,13 @@ impl HeaderList {
         }
     }
 
+    pub fn header_by_height(&self, height: usize) -> Option<&HeaderEntry> {
+        self.headers.get(height).map(|entry| {
+            assert_eq!(entry.height(), height);
+            entry
+        })
+    }
+
     pub fn is_empty(&self) -> bool {
         self.headers.is_empty()
     }

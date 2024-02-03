@@ -27,10 +27,11 @@ pub mod config;
 pub mod daemon;
 pub mod electrum;
 pub mod errors;
+pub mod indexer;
 pub mod metrics;
-pub mod new_index;
 pub mod rest;
 pub mod signal;
+pub mod store;
 pub mod util;
 
 #[cfg(feature = "liquid")]
