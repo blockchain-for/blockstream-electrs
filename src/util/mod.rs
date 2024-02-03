@@ -1,6 +1,9 @@
 pub mod block;
 
-use std::thread;
+use std::{
+    sync::mpsc::{channel, sync_channel, Receiver, Sender, SyncSender},
+    thread,
+};
 
 pub type Bytes = Vec<u8>;
 // TODO: replace by a separate opaque type (similar to Sha256dHash, but without the "double")
@@ -23,4 +26,52 @@ where
 
 pub fn full_hash(hash: &[u8]) -> FullHash {
     *array_ref![hash, 0, HASH_LEN]
+}
+
+pub struct SyncChannel<T> {
+    tx: SyncSender<T>,
+    rx: Receiver<T>,
+}
+
+impl<T> SyncChannel<T> {
+    pub fn new(size: usize) -> Self {
+        let (tx, rx) = sync_channel(size);
+        Self { tx, rx }
+    }
+
+    pub fn sender(&self) -> SyncSender<T> {
+        self.sender().clone()
+    }
+
+    pub fn receiver(&self) -> &Receiver<T> {
+        &self.rx
+    }
+
+    pub fn into_receiver(self) -> Receiver<T> {
+        self.rx
+    }
+}
+
+pub struct Channel<T> {
+    tx: Sender<T>,
+    rx: Receiver<T>,
+}
+
+impl<T> Channel<T> {
+    pub fn unbounded() -> Self {
+        let (tx, rx) = channel();
+        Channel { tx, rx }
+    }
+
+    pub fn sender(&self) -> Sender<T> {
+        self.tx.clone()
+    }
+
+    pub fn receiver(&self) -> &Receiver<T> {
+        &self.rx
+    }
+
+    pub fn into_receiver(self) -> Receiver<T> {
+        self.rx
+    }
 }

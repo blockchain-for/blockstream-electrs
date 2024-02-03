@@ -78,7 +78,7 @@ impl Store {
         &self.cache
     }
 
-    pub fn done_inital_sync(&self) -> bool {
+    pub fn done_initial_sync(&self) -> bool {
         self.txstore.get(b"t").is_some()
     }
 }

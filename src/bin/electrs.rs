@@ -1,7 +1,13 @@
 use std::{process, sync::Arc};
 
 use electrs::{
-    config::Config, daemon::Daemon, errors::*, metrics::Metrics, signal::Waiter, store::Store,
+    config::Config,
+    daemon::Daemon,
+    errors::*,
+    indexer::{fetch::FetchFrom, Indexer},
+    metrics::Metrics,
+    signal::Waiter,
+    store::Store,
 };
 use error_chain::ChainedError;
 use log::error;
@@ -31,8 +37,29 @@ fn run_server(config: Arc<Config>) -> Result<()> {
     ));
 
     let store = Arc::new(Store::open(&config.db_path.join("newindex"), &config));
-    // let mut indexer = Indexer::open(Arc::clone(&store), fetch_from(&config, &store), &config, &metrics);
-    // let mut tip = indexer.update(&daemon)?
+    let mut indexer = Indexer::open(
+        Arc::clone(&store),
+        fetch_from(&config, &store),
+        &config,
+        &metrics,
+    );
+    let mut tip = indexer.update(&daemon)?;
 
     Ok(())
+}
+
+fn fetch_from(config: &Config, store: &Store) -> FetchFrom {
+    let mut jsonrpc_import = config.jsonrpc_import;
+    if !jsonrpc_import {
+        // switch over to jsonrpc after the initial sync is done
+        jsonrpc_import = store.done_initial_sync();
+    }
+
+    if jsonrpc_import {
+        // slower, uses JSONRPC (good for incremental updates)
+        FetchFrom::Bitcoind
+    } else {
+        // faster, uses blk*.dat files (good for initial indexing)
+        FetchFrom::BlkFiles
+    }
 }
