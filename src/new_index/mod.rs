@@ -1,5 +1,8 @@
 pub mod db;
+pub mod fetch;
+pub mod indexer;
 pub mod schema;
+pub mod utxo;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -17,12 +20,12 @@ const MIN_HISTORY_ITEMS_TO_CACHE: usize = 100;
 
 pub struct Store {
     // TODO: should be column families
-    txstore: DB,
-    history: DB,
-    cache: DB,
-    added_blockhashes: RwLock<HashSet<BlockHash>>,
-    indexed_blockhashes: RwLock<HashSet<BlockHash>>,
-    indexed_headers: RwLock<HeaderList>,
+    pub txstore: DB,
+    pub history: DB,
+    pub cache: DB,
+    pub added_blockhashes: RwLock<HashSet<BlockHash>>,
+    pub indexed_blockhashes: RwLock<HashSet<BlockHash>>,
+    pub indexed_headers: RwLock<HeaderList>,
 }
 
 impl Store {

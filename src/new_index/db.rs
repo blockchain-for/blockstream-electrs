@@ -11,6 +11,12 @@ pub struct DBRow {
     pub value: Vec<u8>,
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum DBFlush {
+    Disable,
+    Enable,
+}
+
 pub struct ScanIterator<'a> {
     prefix: Vec<u8>,
     iter: rocksdb::DBIterator<'a>,
