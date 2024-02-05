@@ -3,7 +3,10 @@ use std::{
     sync::Arc,
 };
 
-use bitcoin::{consensus::deserialize, BlockHash, OutPoint, Script, Transaction, TxOut, Txid};
+use bitcoin::{
+    consensus::{deserialize, serialize},
+    BlockHash, OutPoint, Script, Transaction, TxOut, Txid,
+};
 use itertools::Itertools;
 use rayon::prelude::*;
 
@@ -12,9 +15,9 @@ use crate::{
     config::Config,
     daemon::Daemon,
     store::{
-        BlockEntry, BlockRow, CachedUtxoMap, DBFlush, DBRow, FetchFrom, Fetcher, FundingInfo,
-        SpendingInfo, Store, TxConfRow, TxEdgeRow, TxHistoryInfo, TxHistoryRow, TxOutRow, TxRow,
-        UtxoMap, DB,
+        start_fetcher, BlockEntry, BlockRow, CachedUtxoMap, DBFlush, DBRow, FetchFrom, Fetcher,
+        FundingInfo, SpendingInfo, Store, TxConfRow, TxEdgeRow, TxHistoryInfo, TxHistoryRow,
+        TxOutRow, TxRow, UtxoMap, DB,
     },
     util::{
         block::{BlockMeta, HeaderEntry},
@@ -84,7 +87,28 @@ impl Indexer {
         start_fetcher(self.from, &daemon, to_index)?.each(|blocks| self.index(&blocks));
         self.start_auto_compactions(&self.store.history);
 
-        todo!()
+        if let DBFlush::Disable = self.flush {
+            debug!("flushing to disk");
+            self.store.txstore.flush();
+            self.store.history.flush();
+            self.flush = DBFlush::Enable;
+        }
+
+        // update the synced tip *after* the new data is flushed to disk
+        debug!("updating synced tip to {:?}", tip);
+        self.store.txstore.put_sync(b"t", &serialize(&tip));
+
+        let mut headers = self.store.indexed_headers.write().unwrap();
+        headers.apply(new_headers);
+        assert_eq!(tip, *headers.tip());
+
+        if let FetchFrom::BlkFiles = self.from {
+            self.from = FetchFrom::Bitcoind;
+        }
+
+        self.tip_metric.set(headers.len() as i64 - 1);
+
+        Ok(tip)
     }
 
     fn get_new_headers(&self, daemon: &Daemon, tip: &BlockHash) -> Result<Vec<HeaderEntry>> {
@@ -157,7 +181,14 @@ impl Indexer {
     }
 
     fn start_auto_compactions(&self, store: &DB) {
-        todo!()
+        let key = b"F".to_vec();
+        if store.get(&key).is_none() {
+            store.full_compaction();
+            store.put_sync(&key, b"");
+            assert!(store.get(&key).is_some());
+        }
+
+        store.enable_auto_compaction();
     }
 
     fn start_timer(&self, name: &str) -> HistogramTimer {
@@ -184,14 +215,6 @@ impl From<&Config> for IndexerConfig {
             parent_network: config.parent_network,
         }
     }
-}
-
-fn start_fetcher(
-    from: FetchFrom,
-    daemon: &Daemon,
-    new_headers: Vec<HeaderEntry>,
-) -> Result<Fetcher<Vec<BlockEntry>>> {
-    todo!()
 }
 
 fn add_blocks(block_entries: &[BlockEntry], iconfig: &IndexerConfig) -> Vec<DBRow> {

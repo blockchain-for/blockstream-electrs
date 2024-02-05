@@ -109,6 +109,18 @@ impl DB {
         self.db.get(key).unwrap().map(|v| v.to_vec())
     }
 
+    pub fn full_compaction(&self) {
+        // TODO: make sure this doesn't fail silently
+        debug!("starting full compaction on {:?}", self.db);
+        self.db.compact_range(None::<&[u8]>, None::<&[u8]>);
+        debug!("finished full compaction on {:?}", self.db);
+    }
+
+    pub fn enable_auto_compaction(&self) {
+        let opts = [("disable_auto_compactions", "false")];
+        self.db.set_options(&opts).unwrap();
+    }
+
     pub fn write(&self, mut rows: Vec<DBRow>, flush: DBFlush) {
         debug!(
             "writing {} rows to {:?}, flush={:?}",
@@ -140,6 +152,12 @@ impl DB {
 
     pub fn put(&self, key: &[u8], value: &[u8]) {
         self.db.put(key, value).unwrap()
+    }
+
+    pub fn put_sync(&self, key: &[u8], value: &[u8]) {
+        let mut opts = rocksdb::WriteOptions::new();
+        opts.set_sync(true);
+        self.db.put_opt(key, value, &opts).unwrap();
     }
 
     pub fn iter_scan(&self, prefix: &[u8]) -> ScanIterator {
