@@ -1,4 +1,6 @@
 pub mod block;
+pub mod script;
+pub mod transaction;
 
 use std::{
     sync::mpsc::{channel, sync_channel, Receiver, Sender, SyncSender},
@@ -40,7 +42,7 @@ impl<T> SyncChannel<T> {
     }
 
     pub fn sender(&self) -> SyncSender<T> {
-        self.sender().clone()
+        self.tx.clone()
     }
 
     pub fn receiver(&self) -> &Receiver<T> {

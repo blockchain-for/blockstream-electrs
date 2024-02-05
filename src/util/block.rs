@@ -7,6 +7,7 @@ use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime as DateTime;
 
 use crate::errors::*;
+use crate::store::BlockEntry;
 
 const MTP_SPAN: usize = 11;
 
@@ -280,15 +281,15 @@ pub struct BlockHeaderMeta {
     pub mtp: u32,
 }
 
-// impl From<&BlockEntry> for BlockMeta {
-//     fn from(b: &BlockEntry) -> BlockMeta {
-//         BlockMeta {
-//             tx_count: b.block.txdata.len() as u32,
-//             weight: b.block.weight() as u32,
-//             size: b.size,
-//         }
-//     }
-// }
+impl From<&BlockEntry> for BlockMeta {
+    fn from(b: &BlockEntry) -> BlockMeta {
+        BlockMeta {
+            tx_count: b.block.txdata.len() as u32,
+            weight: b.block.weight() as u32,
+            size: b.size,
+        }
+    }
+}
 
 impl BlockMeta {
     pub fn parse_getblock(val: ::serde_json::Value) -> Result<BlockMeta> {

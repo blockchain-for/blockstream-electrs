@@ -4,10 +4,10 @@ use electrs::{
     config::Config,
     daemon::Daemon,
     errors::*,
-    indexer::{fetch::FetchFrom, Indexer},
+    indexer::Indexer,
     metrics::Metrics,
     signal::Waiter,
-    store::Store,
+    store::{FetchFrom, Store},
 };
 use error_chain::ChainedError;
 use log::error;
@@ -34,7 +34,7 @@ fn run_server(config: Arc<Config>) -> Result<()> {
         config.network_type,
         signal.clone(),
         &metrics,
-    ));
+    )?);
 
     let store = Arc::new(Store::open(&config.db_path.join("newindex"), &config));
     let mut indexer = Indexer::open(

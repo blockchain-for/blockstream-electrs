@@ -1,4 +1,6 @@
-use bitcoin::network::constants::Network as BNetwork;
+use bitcoin::{
+    blockdata::constants::genesis_block, network::constants::Network as BNetwork, BlockHash,
+};
 
 #[derive(Debug, Copy, Clone, PartialEq, Hash, Serialize, Ord, PartialOrd, Eq)]
 pub enum Network {
@@ -19,6 +21,15 @@ pub enum Network {
     #[cfg(feature = "liquid")]
     LiquidRegtest,
 }
+
+#[cfg(feature = "liquid")]
+pub const LIQUID_TESTNET_PARAMS: address::AddressParams = address::AddressParams {
+    p2pkh_prefix: 36,
+    p2sh_prefix: 19,
+    blinded_prefix: 23,
+    bech_hrp: "tex",
+    blech_hrp: "tlq",
+};
 
 impl Network {
     pub fn names() -> Vec<String> {
@@ -41,6 +52,51 @@ impl Network {
     #[cfg(not(feature = "liquid"))]
     pub fn magic(self) -> u32 {
         BNetwork::from(self).magic()
+    }
+
+    #[cfg(feature = "liquid")]
+    pub fn magic(self) -> u32 {
+        match self {
+            Network::Liquid | Network::LiquidRegtest => 0xDAB5_BFFA,
+            Network::LiquidTestnet => 0x62DD_0E41,
+        }
+    }
+
+    pub fn is_regtest(self) -> bool {
+        match self {
+            #[cfg(not(feature = "liquid"))]
+            Network::Regtest => true,
+            #[cfg(feature = "liquid")]
+            Network::LiquidRegtest => true,
+            _ => false,
+        }
+    }
+
+    #[cfg(feature = "liquid")]
+    pub fn address_params(self) -> &'static address::AddressParams {
+        // Liquid regtest uses elements's address params
+        match self {
+            Network::Liquid => &address::AddressParams::LIQUID,
+            Network::LiquidRegtest => &address::AddressParams::ELEMENTS,
+            Network::LiquidTestnet => &LIQUID_TESTNET_PARAMS,
+        }
+    }
+
+    #[cfg(feature = "liquid")]
+    pub fn native_asset(self) -> &'static AssetId {
+        match self {
+            Network::Liquid => &*asset::NATIVE_ASSET_ID,
+            Network::LiquidTestnet => &*asset::NATIVE_ASSET_ID_TESTNET,
+            Network::LiquidRegtest => &*asset::NATIVE_ASSET_ID_REGTEST,
+        }
+    }
+
+    #[cfg(feature = "liquid")]
+    pub fn pegged_asset(self) -> Option<&'static AssetId> {
+        match self {
+            Network::Liquid => Some(&*asset::NATIVE_ASSET_ID),
+            Network::LiquidTestnet | Network::LiquidRegtest => None,
+        }
     }
 }
 
@@ -89,5 +145,50 @@ impl From<BNetwork> for Network {
             BNetwork::Regtest => Network::Regtest,
             BNetwork::Signet => Network::Signet,
         }
+    }
+}
+
+pub fn genesis_hash(network: Network) -> BlockHash {
+    #[cfg(not(feature = "liquid"))]
+    return bitcoin_genesis_hash(network.into());
+    #[cfg(feature = "liquid")]
+    return liquid_genesis_hash(network.into);
+}
+
+pub fn bitcoin_genesis_hash(network: BNetwork) -> BlockHash {
+    lazy_static! {
+        static ref BITCOIN_GENESIS: bitcoin::BlockHash =
+            genesis_block(BNetwork::Bitcoin).block_hash();
+        static ref TESTNET_GENESIS: bitcoin::BlockHash =
+            genesis_block(BNetwork::Testnet).block_hash();
+        static ref REGTEST_GENESIS: bitcoin::BlockHash =
+            genesis_block(BNetwork::Regtest).block_hash();
+        static ref SIGNET_GENESIS: bitcoin::BlockHash =
+            genesis_block(BNetwork::Signet).block_hash();
+    }
+
+    match network {
+        BNetwork::Bitcoin => *BITCOIN_GENESIS,
+        BNetwork::Testnet => *TESTNET_GENESIS,
+        BNetwork::Regtest => *REGTEST_GENESIS,
+        BNetwork::Signet => *SIGNET_GENESIS,
+    }
+}
+
+#[cfg(feature = "liquid")]
+pub fn liquid_genesis_hash(network: Network) -> elements::BlockHash {
+    lazy_static! {
+        static ref LIQUID_GENESIS: BlockHash =
+            "1466275836220db2944ca059a3a10ef6fd2ea684b0688d2c379296888a206003"
+                .parse()
+                .unwrap();
+    }
+
+    match network {
+        Network::Liquid => *LIQUID_GENESIS,
+        // The genesis block for liquid regtest chains varies based on the chain configuration.
+        // This instead uses an all zeroed-out hash, which doesn't matter in practice because its
+        // only used for Electrum server discovery, which isn't active on regtest.
+        _ => Default::default(),
     }
 }

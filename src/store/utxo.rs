@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use bincode::Options;
 use bitcoin::{
     consensus::{deserialize, serialize},
     BlockHash, OutPoint, Script, Transaction, TxOut, Txid,
@@ -14,7 +15,7 @@ use crate::{
     },
 };
 
-use super::{fetch::BlockEntry, query::ChainQuery};
+use super::BlockEntry;
 
 pub type UtxoMap = HashMap<OutPoint, (BlockId, Value)>;
 
@@ -311,7 +312,7 @@ pub struct TxHistoryRow {
 }
 
 impl TxHistoryRow {
-    fn new(script: &Script, confirmed_height: u32, txinfo: TxHistoryInfo) -> Self {
+    pub fn new(script: &Script, confirmed_height: u32, txinfo: TxHistoryInfo) -> Self {
         let key = TxHistoryKey {
             code: b'H',
             hash: compute_script_hash(&script),
@@ -330,22 +331,25 @@ impl TxHistoryRow {
     }
 
     fn prefix_height(code: u8, hash: &[u8], height: u32) -> Bytes {
-        bincode::config()
-            .big_endian()
+        bincode::options()
+            .with_big_endian()
             .serialize(&(code, full_hash(&hash[..]), height))
             .unwrap()
     }
 
     pub fn into_row(self) -> DBRow {
         DBRow {
-            key: bincode::config().big_endian().serialize(&self.key).unwrap(),
+            key: bincode::options()
+                .with_big_endian()
+                .serialize(&self.key)
+                .unwrap(),
             value: vec![],
         }
     }
 
     pub fn from_row(row: DBRow) -> Self {
-        let key = bincode::config()
-            .big_endian()
+        let key = bincode::options()
+            .with_big_endian()
             .deserialize(&row.key)
             .expect("failed to deserialize TxHistoryKey");
         TxHistoryRow { key }
@@ -390,12 +394,12 @@ struct TxEdgeKey {
     spending_vin: u16,
 }
 
-struct TxEdgeRow {
+pub struct TxEdgeRow {
     key: TxEdgeKey,
 }
 
 impl TxEdgeRow {
-    fn new(
+    pub fn new(
         funding_txid: FullHash,
         funding_vout: u16,
         spending_txid: FullHash,
@@ -411,19 +415,19 @@ impl TxEdgeRow {
         TxEdgeRow { key }
     }
 
-    fn filter(outpoint: &OutPoint) -> Bytes {
+    pub fn filter(outpoint: &OutPoint) -> Bytes {
         // TODO build key without using bincode? [ b"S", &outpoint.txid[..], outpoint.vout?? ].concat()
         bincode::serialize(&(b'S', full_hash(&outpoint.txid[..]), outpoint.vout as u16)).unwrap()
     }
 
-    fn into_row(self) -> DBRow {
+    pub fn into_row(self) -> DBRow {
         DBRow {
             key: bincode::serialize(&self.key).unwrap(),
             value: vec![],
         }
     }
 
-    fn from_row(row: DBRow) -> Self {
+    pub fn from_row(row: DBRow) -> Self {
         TxEdgeRow {
             key: bincode::deserialize(&row.key).expect("failed to deserialize TxEdgeKey"),
         }
@@ -431,18 +435,18 @@ impl TxEdgeRow {
 }
 
 #[derive(Serialize, Deserialize)]
-struct ScriptCacheKey {
+pub struct ScriptCacheKey {
     code: u8,
     scripthash: FullHash,
 }
 
-struct StatsCacheRow {
+pub struct StatsCacheRow {
     key: ScriptCacheKey,
     value: Bytes,
 }
 
 impl StatsCacheRow {
-    fn new(scripthash: &[u8], stats: &ScriptStats, blockhash: &BlockHash) -> Self {
+    pub fn new(scripthash: &[u8], stats: &ScriptStats, blockhash: &BlockHash) -> Self {
         StatsCacheRow {
             key: ScriptCacheKey {
                 code: b'A',
@@ -464,15 +468,15 @@ impl StatsCacheRow {
     }
 }
 
-type CachedUtxoMap = HashMap<(Txid, u32), (u32, Value)>; // (txid,vout) => (block_height,output_value)
+pub type CachedUtxoMap = HashMap<(Txid, u32), (u32, Value)>; // (txid,vout) => (block_height,output_value)
 
-struct UtxoCacheRow {
+pub struct UtxoCacheRow {
     key: ScriptCacheKey,
     value: Bytes,
 }
 
 impl UtxoCacheRow {
-    fn new(scripthash: &[u8], utxos: &UtxoMap, blockhash: &BlockHash) -> Self {
+    pub fn new(scripthash: &[u8], utxos: &UtxoMap, blockhash: &BlockHash) -> Self {
         let utxos_cache = make_utxo_cache(utxos);
 
         UtxoCacheRow {
@@ -498,7 +502,7 @@ impl UtxoCacheRow {
 
 // keep utxo cache with just the block height (the hash/timestamp are read later from the headers to reconstruct BlockId)
 // and use a (txid,vout) tuple instead of OutPoints (they don't play nicely with bincode serialization)
-fn make_utxo_cache(utxos: &UtxoMap) -> CachedUtxoMap {
+pub fn make_utxo_cache(utxos: &UtxoMap) -> CachedUtxoMap {
     utxos
         .iter()
         .map(|(outpoint, (blockid, value))| {
@@ -506,19 +510,6 @@ fn make_utxo_cache(utxos: &UtxoMap) -> CachedUtxoMap {
                 (outpoint.txid, outpoint.vout),
                 (blockid.height as u32, *value),
             )
-        })
-        .collect()
-}
-
-fn from_utxo_cache(utxos_cache: CachedUtxoMap, chain: &ChainQuery) -> UtxoMap {
-    utxos_cache
-        .into_iter()
-        .map(|((txid, vout), (height, value))| {
-            let outpoint = OutPoint { txid, vout };
-            let blockid = chain
-                .blockid_by_height(height as usize)
-                .expect("missing blockheader for valid utxo cache entry");
-            (outpoint, (blockid, value))
         })
         .collect()
 }

@@ -122,6 +122,23 @@ impl Daemon {
         })
     }
 
+    pub fn magic(&self) -> u32 {
+        self.network.magic()
+    }
+
+    pub fn list_block_files(&self) -> Result<Vec<PathBuf>> {
+        let path = self.blocks_dir.join("blk*.dat");
+        debug!("Listing block files at: {:?}", path);
+        let mut paths: Vec<PathBuf> = glob::glob(path.to_str().unwrap())
+            .chain_err(|| "failed to list blk*.dat files")?
+            .map(|res| res.unwrap())
+            .collect();
+
+        paths.sort();
+
+        Ok(paths)
+    }
+
     // Get estimated feerates for the provided confirmation targets using a batch RPC request
     // Missing estimates are logged but do not cause a failure, whatever is available is returned
     #[allow(clippy::float_cmp)]
